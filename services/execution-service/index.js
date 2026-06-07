@@ -5,21 +5,21 @@ const PORT = process.env.PORT || 3003;
 
 app.use(express.json());
 
-// Map frontend languages to Piston API language names
+// Map frontend languages to Piston API language names and versions
 const LANGUAGE_MAP = {
-  javascript: 'javascript',
-  typescript: 'typescript',
-  python: 'python',
-  java: 'java',
-  c: 'c',
-  cpp: 'cpp',
-  go: 'go',
-  rust: 'rust',
-  ruby: 'ruby',
-  php: 'php',
-  csharp: 'csharp',
-  swift: 'swift',
-  shell: 'bash'
+  javascript: { language: 'javascript', version: '18.15.0' },
+  typescript: { language: 'typescript', version: '5.0.3' },
+  python:     { language: 'python',     version: '3.10.0' },
+  java:       { language: 'java',       version: '15.0.2' },
+  c:          { language: 'c',          version: '10.2.0' },
+  cpp:        { language: 'c++',        version: '10.2.0' },
+  go:         { language: 'go',         version: '1.16.2' },
+  rust:       { language: 'rust',       version: '1.68.2' },
+  ruby:       { language: 'ruby',       version: '3.0.1' },
+  php:        { language: 'php',        version: '8.2.3' },
+  csharp:     { language: 'csharp.net', version: '5.0.201' },
+  swift:      { language: 'swift',      version: '5.3.3' },
+  shell:      { language: 'bash',       version: '5.2.0' },
 };
 
 app.post('/', async (req, res) => {
@@ -40,8 +40,8 @@ app.post('/', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        language: pistonLang,
-        version: '*', // Use the latest available version
+        language: pistonLang.language,
+        version: pistonLang.version,
         files: [
           { content: code }
         ]

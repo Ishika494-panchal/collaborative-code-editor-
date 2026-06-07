@@ -8,11 +8,31 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:3001';
+const EDITOR_SERVICE_URL = process.env.EDITOR_SERVICE_URL || 'http://localhost:3002';
 const EXECUTION_SERVICE_URL = process.env.EXECUTION_SERVICE_URL || 'http://localhost:3003';
 
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 
 app.use(cookieParser());
+
+// Proxy /auth to Auth Service
+app.use('/auth', createProxyMiddleware({
+  target: AUTH_SERVICE_URL,
+  changeOrigin: true,
+}));
+
+// Proxy /verify to Auth Service
+app.use('/verify', createProxyMiddleware({
+  target: AUTH_SERVICE_URL,
+  changeOrigin: true,
+}));
+
+// Proxy /api/rooms to Editor Service
+app.use('/api/rooms', createProxyMiddleware({
+  target: EDITOR_SERVICE_URL,
+  changeOrigin: true,
+}));
 
 // Proxy /api/execute to the Execution Service
 // IMPORTANT: Do not put express.json() before this proxy, otherwise body-parser 

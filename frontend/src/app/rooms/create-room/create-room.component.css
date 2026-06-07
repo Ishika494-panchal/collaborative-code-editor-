@@ -1,23 +1,73 @@
 .create-room-container {
+  min-height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background-color: #1e1e1e;
-  color: white;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  font-family: 'Segoe UI', sans-serif;
 }
-.btn-create {
-  padding: 15px 30px;
-  font-size: 1.2rem;
-  background-color: #007acc;
+
+.hero {
+  text-align: center;
+  padding: 3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.hero h1 {
+  font-size: 3rem;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: #a0aec0;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+.auth-section p, .room-section p {
+  color: #e2e8f0;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+}
+
+.btn-github {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #24292e;
   color: white;
   border: none;
-  border-radius: 5px;
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-size: 1rem;
   cursor: pointer;
-  margin-top: 20px;
-  transition: background-color 0.3s;
+  margin: 0 auto;
+  transition: all 0.3s ease;
 }
+
+.btn-github:hover {
+  background: #444d56;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+.btn-create {
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
 .btn-create:hover {
-  background-color: #005a9e;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
 }

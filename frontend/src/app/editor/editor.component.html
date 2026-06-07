@@ -1,0 +1,26 @@
+<div class="code-editor-page">
+  <div class="toolbar">
+    <div class="left-controls">
+      <label for="language-select">Language: </label>
+      <select id="language-select" (change)="onLanguageChange($event)">
+        <option *ngFor="let lang of languages" [value]="lang.id" [selected]="lang.id === editorOptions.language">
+          {{ lang.name }}
+        </option>
+      </select>
+    </div>
+    <div class="right-controls">
+      <button class="btn-run" (click)="runCode()" [disabled]="isExecuting">
+        {{ isExecuting ? 'Running...' : 'Run Code ▶' }}
+      </button>
+    </div>
+  </div>
+  
+  <div class="editor-wrapper">
+    <ngx-monaco-editor style="height: 100%;" [options]="editorOptions" (onInit)="onInit($event)"></ngx-monaco-editor>
+  </div>
+  
+  <div class="terminal-panel">
+    <div class="terminal-header">Output</div>
+    <pre class="terminal-output">{{ output }}</pre>
+  </div>
+</div>

@@ -1,0 +1,11 @@
+<div class="sidebar-container">
+  <h3>Participants ({{ activeUsers.length }})</h3>
+  <ul class="user-list">
+    <li *ngFor="let user of activeUsers" class="user-item">
+      <div class="avatar-circle" [style.backgroundColor]="user.color">
+        {{ user.name.charAt(0).toUpperCase() }}
+      </div>
+      <span class="user-name">{{ user.name }}</span>
+    </li>
+  </ul>
+</div>

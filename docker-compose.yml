@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - codesync-net
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - codesync-net
+
+  api-gateway:
+    build: ./services/api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    depends_on:
+      - auth-service
+      - editor-service
+      - execution-service
+    networks:
+      - codesync-net
+
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - MONGO_URI=mongodb://mongodb:27017/codesync
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=supersecretjwt # Should be overridden in .env
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_CALLBACK_URL=http://localhost:3001/auth/github/callback
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - codesync-net
+
+  editor-service:
+    build: ./services/editor-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - codesync-net
+
+  execution-service:
+    build: ./services/execution-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+    networks:
+      - codesync-net
+
+networks:
+  codesync-net:
+    driver: bridge
+
+volumes:
+  mongodb_data:

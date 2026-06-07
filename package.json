@@ -1,0 +1,29 @@
+{
+  "name": "collaborative-code-editor",
+  "version": "1.0.0",
+  "description": "Collaborative Code Editor Monorepo",
+  "scripts": {
+    "start": "concurrently \"npm run start-api\" \"npm run start-auth\" \"npm run start-editor\" \"npm run start-exec\" \"npm run start-frontend\"",
+    "start-api": "node services/api-gateway/index.js",
+    "start-auth": "node services/auth-service/index.js",
+    "start-editor": "node services/editor-service/index.js",
+    "start-exec": "node services/execution-service/index.js",
+    "start-frontend": "cd frontend && npm start"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "http-proxy-middleware": "^4.1.0",
+    "ioredis": "^5.11.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.6.3",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "socket.io": "^4.8.3",
+    "uuid": "^14.0.0",
+    "yjs": "^13.6.31"
+  }
+}

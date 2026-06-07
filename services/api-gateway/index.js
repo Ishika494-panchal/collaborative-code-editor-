@@ -20,6 +20,7 @@ app.use(cookieParser());
 app.use('/api/execute', createProxyMiddleware({
   target: EXECUTION_SERVICE_URL,
   changeOrigin: true,
+  pathRewrite: { '^/api/execute': '/' },
 }));
 
 // Apply JSON parser for other routes

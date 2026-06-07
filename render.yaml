@@ -1,10 +1,4 @@
 services:
-  # Redis Database
-  - type: redis
-    name: codesync-redis
-    ipAllowList: [] # Allow internal access only
-    plan: free
-
   # API Gateway
   - type: web
     name: codesync-api-gateway
@@ -15,7 +9,7 @@ services:
       - key: PORT
         value: 3000
       - key: FRONTEND_URL
-        value: https://codesync-frontend.onrender.com
+        sync: false # Set manually to your Vercel URL
       - key: EXECUTION_SERVICE_URL
         value: https://codesync-execution-service.onrender.com
 
@@ -29,20 +23,17 @@ services:
       - key: PORT
         value: 3001
       - key: FRONTEND_URL
-        value: https://codesync-frontend.onrender.com
+        sync: false # Set manually to your Vercel URL
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: codesync-redis
-          property: connectionString
+        sync: false # Set manually to your Upstash Redis URL
       - key: MONGO_URI
-        sync: false # Set this manually in Render dashboard
+        sync: false # Set manually to your MongoDB Atlas URI
       - key: JWT_SECRET
         generateValue: true
       - key: GITHUB_CLIENT_ID
-        sync: false # Set this manually in Render dashboard
+        sync: false # Set manually
       - key: GITHUB_CLIENT_SECRET
-        sync: false # Set this manually in Render dashboard
+        sync: false # Set manually
       - key: GITHUB_CALLBACK_URL
         value: https://codesync-auth-service.onrender.com/auth/github/callback
 
@@ -56,12 +47,9 @@ services:
       - key: PORT
         value: 3002
       - key: FRONTEND_URL
-        value: https://codesync-frontend.onrender.com
+        sync: false # Set manually to your Vercel URL
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: codesync-redis
-          property: connectionString
+        sync: false # Set manually to your Upstash Redis URL
 
   # Execution Service
   - type: web
@@ -72,19 +60,3 @@ services:
     envVars:
       - key: PORT
         value: 3003
-
-  # Frontend Static Site
-  - type: web
-    name: codesync-frontend
-    env: static
-    buildCommand: "cd frontend && npm install && npm run build"
-    staticPublishPath: "./frontend/dist/frontend/browser"
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: API_URL
-        value: https://codesync-api-gateway.onrender.com
-      - key: SOCKET_URL
-        value: https://codesync-editor-service.onrender.com

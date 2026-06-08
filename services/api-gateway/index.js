@@ -16,22 +16,53 @@ app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 
 app.use(cookieParser());
 
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretcodesyncjwt';
+
+// ─── Auth Token Setter ────────────────────────────────────────────────────────
+// After GitHub OAuth, the auth service redirects here with the JWT as a query
+// param. We set the cookie from port 3000 (gateway) so that subsequent calls
+// to /verify from the frontend (which also targets port 3000) include the cookie.
+app.get('/auth/set-token', (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.redirect(FRONTEND_URL);
+
+  res.cookie('jwt', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
+  });
+
+  res.redirect(FRONTEND_URL);
+});
+
+
 // Proxy /auth to Auth Service
 app.use('/auth', createProxyMiddleware({
   target: AUTH_SERVICE_URL,
   changeOrigin: true,
+  pathRewrite: { '^/': '/auth/' } // Restore the stripped /auth prefix
 }));
 
 // Proxy /verify to Auth Service
 app.use('/verify', createProxyMiddleware({
   target: AUTH_SERVICE_URL,
   changeOrigin: true,
+  pathRewrite: { '^/': '/verify/' } // Restore the stripped /verify prefix
 }));
 
 // Proxy /api/rooms to Editor Service
 app.use('/api/rooms', createProxyMiddleware({
   target: EDITOR_SERVICE_URL,
   changeOrigin: true,
+  pathRewrite: { '^/': '/api/rooms/' } // Restore the stripped /api/rooms prefix
+}));
+
+// Proxy WebSockets for Socket.IO to Editor Service
+app.use('/socket.io', createProxyMiddleware({
+  target: EDITOR_SERVICE_URL,
+  changeOrigin: true,
+  ws: true // Enable WebSocket proxying
 }));
 
 // Proxy /api/execute to the Execution Service

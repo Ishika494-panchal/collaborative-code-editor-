@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3000';
 
 app.use(cors({
   origin: FRONTEND_URL,
@@ -37,11 +38,16 @@ app.get('/auth/github',
   passport.authenticate('github', { scope: [ 'user:email' ] }));
 
 // GitHub OAuth Callback
-app.get('/auth/github/callback', 
-  passport.authenticate('github', { session: false, failureRedirect: '/login' }),
-  function(req, res) {
-    // Successful authentication
-    const user = req.user;
+app.get('/auth/github/callback', (req, res, next) => {
+  passport.authenticate('github', { session: false }, (err, user, info) => {
+    if (err) {
+      console.error('❌ Passport Auth Error:', err);
+      return res.status(500).send(`Authentication Error: ${err.message || err}`);
+    }
+    if (!user) {
+      console.error('❌ Passport Auth Failed (no user profile returned):', info);
+      return res.status(401).send(`Authentication Failed: ${info ? info.message : 'GitHub did not return a user profile. Please verify your client ID, secret, and callback settings.'}`);
+    }
     
     // Create JWT
     const token = jwt.sign({
@@ -49,16 +55,10 @@ app.get('/auth/github/callback',
       username: user.username
     }, JWT_SECRET, { expiresIn: '1d' });
 
-    // Store in HttpOnly cookie
-    res.cookie('jwt', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Lax is better for OAuth redirects
-      maxAge: 24 * 60 * 60 * 1000 // 1 day
-    });
-
-    res.redirect(FRONTEND_URL); // Redirect to frontend
-  });
+    // Redirect to API Gateway which will set the cookie on port 3000
+    res.redirect(`${GATEWAY_URL}/auth/set-token?token=${token}`);
+  })(req, res, next);
+});
 
 // Verify token route (used by Gateway/Frontend)
 app.get('/verify', (req, res) => {

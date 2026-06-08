@@ -22,6 +22,92 @@ const LANGUAGE_MAP = {
   shell:      { language: 'bash',       version: '5.2.0' },
 };
 
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+
+async function executeLocally(language, code) {
+  const tempDir = path.join(__dirname, 'temp');
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir);
+  }
+
+  const fileId = uuidv4();
+  let fileName = '';
+  let command = '';
+
+  switch (language) {
+    case 'javascript':
+      fileName = `${fileId}.js`;
+      command = `node "${path.join(tempDir, fileName)}"`;
+      break;
+    case 'python':
+      fileName = `${fileId}.py`;
+      // Try python first. We will handle fallback if not found
+      command = `python "${path.join(tempDir, fileName)}"`;
+      break;
+    case 'typescript':
+      fileName = `${fileId}.ts`;
+      command = `npx ts-node "${path.join(tempDir, fileName)}"`;
+      break;
+    case 'shell':
+      fileName = `${fileId}.sh`;
+      command = `bash "${path.join(tempDir, fileName)}"`;
+      break;
+    default:
+      throw new Error('local_not_supported');
+  }
+
+  const filePath = path.join(tempDir, fileName);
+  fs.writeFileSync(filePath, code);
+
+  return new Promise((resolve, reject) => {
+    exec(command, { timeout: 6000 }, (error, stdout, stderr) => {
+      // Clean up temp file
+      try {
+        fs.unlinkSync(filePath);
+      } catch (e) {}
+
+      if (error) {
+        if (error.killed) {
+          return resolve('[Error] Local execution timed out (6s limit).');
+        }
+        // Check for common 'command not found' errors to trigger Piston fallback
+        const errMsg = (stderr || error.message).toLowerCase();
+        if (
+          errMsg.includes('not recognized') || 
+          errMsg.includes('not found') || 
+          errMsg.includes('no such file') ||
+          error.code === 127
+        ) {
+          if (language === 'python') {
+            // Try fallback to python3 before giving up on local run
+            const fallbackPath = path.join(tempDir, fileName);
+            fs.writeFileSync(fallbackPath, code);
+            exec(`python3 "${fallbackPath}"`, { timeout: 6000 }, (py3Err, py3Out, py3Stderr) => {
+              try { fs.unlinkSync(fallbackPath); } catch(e) {}
+              if (py3Err) {
+                const py3ErrMsg = (py3Stderr || py3Err.message).toLowerCase();
+                if (py3ErrMsg.includes('not recognized') || py3ErrMsg.includes('not found') || py3Err.code === 127) {
+                  return reject(new Error('runtime_not_installed'));
+                }
+                return resolve((py3Out + py3Stderr).trim());
+              }
+              return resolve(py3Out.trim());
+            });
+            return;
+          }
+          return reject(new Error('runtime_not_installed'));
+        }
+      }
+
+      const output = (stdout + stderr).trim();
+      resolve(output || 'Execution finished with no output.');
+    });
+  });
+}
+
 app.post('/', async (req, res) => {
   const { language, code } = req.body;
 
@@ -30,6 +116,18 @@ app.post('/', async (req, res) => {
     return res.json({ output: `[Info] ${language.toUpperCase()} is a markup/data language.\nIt provides syntax highlighting only in this editor and cannot be "executed" in a terminal.` });
   }
 
+  // 1. Try local execution first for supported scripting languages
+  try {
+    const localOutput = await executeLocally(language, code);
+    return res.json({ output: localOutput });
+  } catch (localErr) {
+    if (localErr.message !== 'local_not_supported' && localErr.message !== 'runtime_not_installed') {
+      console.error('Local Execution Error:', localErr);
+    }
+    // If local execution is not supported or runtime isn't installed, fall back to Piston
+  }
+
+  // 2. Fall back to Piston API
   const pistonLang = LANGUAGE_MAP[language];
   if (!pistonLang) {
     return res.status(400).json({ error: `Language "${language}" is not supported for execution.` });
@@ -54,7 +152,6 @@ app.post('/', async (req, res) => {
 
     const data = await response.json();
     
-    // Piston returns output in data.run.output (and data.compile.output if compilation failed)
     let output = '';
     if (data.compile && data.compile.code !== 0) {
       output = data.compile.output;
@@ -66,7 +163,7 @@ app.post('/', async (req, res) => {
 
   } catch (error) {
     console.error('Execution API Error:', error);
-    res.status(500).json({ error: 'Failed to execute code via Piston API.' });
+    res.status(500).json({ error: `Failed to execute code.\n[Local Fallback]: Please install the '${language}' runtime on your local machine to run it locally, or host your own Piston service.` });
   }
 });
 

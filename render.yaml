@@ -44,7 +44,9 @@ services:
       - key: GITHUB_CLIENT_SECRET
         sync: false # Set this manually in Render dashboard
       - key: GITHUB_CALLBACK_URL
-        value: https://codesync-auth-service.onrender.com/auth/github/callback
+        value: https://codesync-api-gateway.onrender.com/auth/github/callback
+      - key: GATEWAY_URL
+        value: https://codesync-api-gateway.onrender.com
 
   # Editor Service
   - type: web

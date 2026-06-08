@@ -22,6 +22,8 @@ const io = new Server(server, {
   }
 });
 
+const mongoose = require('mongoose');
+
 const PORT = process.env.PORT || 3002;
 
 // Connect to MongoDB
@@ -35,17 +37,70 @@ app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:4200', cred
 app.use(express.json());
 app.use(cookieParser());
 
+// --- In-Memory Room Database Fallback ---
+const inMemoryRooms = new Map();
+
+async function getRoomFromDbOrMemory(roomId) {
+  try {
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      const room = await Room.findOne({ roomId });
+      if (room) {
+        // Cache/Sync to memory
+        inMemoryRooms.set(roomId, room);
+        return room;
+      }
+    }
+  } catch (err) {
+    console.warn(`⚠️ DB error fetching room ${roomId}, using memory:`, err.message);
+  }
+  return inMemoryRooms.get(roomId);
+}
+
+async function createRoomInDbOrMemory(roomId, userId) {
+  const roomData = {
+    roomId,
+    ownerId: userId,
+    participants: [userId],
+    code: '',
+    language: 'javascript',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  inMemoryRooms.set(roomId, roomData);
+
+  try {
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      const newRoom = new Room(roomData);
+      await newRoom.save();
+      return newRoom;
+    }
+  } catch (err) {
+    console.warn(`⚠️ DB error saving new room, running in memory-only:`, err.message);
+  }
+  return roomData;
+}
+
+async function updateRoomCodeInDbOrMemory(roomId, code) {
+  const room = inMemoryRooms.get(roomId);
+  if (room) {
+    room.code = code;
+    room.updatedAt = new Date();
+  }
+  try {
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      await Room.updateOne({ roomId }, { code, updatedAt: Date.now() });
+    }
+  } catch (err) {
+    console.warn(`⚠️ DB error updating room ${roomId} code:`, err.message);
+  }
+}
+
 // --- REST APIs ---
 app.post('/api/rooms', async (req, res) => {
   try {
     const roomId = uuidv4();
     const userId = (req.user && req.user.id) || 'anonymous';
-    const newRoom = new Room({
-      roomId,
-      ownerId: userId,
-      participants: [userId]
-    });
-    await newRoom.save();
+    const room = await createRoomInDbOrMemory(roomId, userId);
     res.status(201).json({ 
       roomId, 
       shareableUrl: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/rooms/${roomId}` 
@@ -58,7 +113,7 @@ app.post('/api/rooms', async (req, res) => {
 
 app.get('/api/rooms/:id', async (req, res) => {
   try {
-    const room = await Room.findOne({ roomId: req.params.id });
+    const room = await getRoomFromDbOrMemory(req.params.id);
     if (!room) return res.status(404).json({ error: 'Room not found' });
     res.json(room);
   } catch (error) {
@@ -74,11 +129,7 @@ const roomUsers = new Map(); // roomId -> Map<socketId, userObject>
 setInterval(async () => {
   for (const [roomId, ydoc] of roomDocs.entries()) {
     const text = ydoc.getText('monaco').toString();
-    try {
-      await Room.updateOne({ roomId }, { code: text, updatedAt: Date.now() });
-    } catch (err) {
-      console.error(`Failed to auto-save room ${roomId}`, err);
-    }
+    await updateRoomCodeInDbOrMemory(roomId, text);
   }
 }, 30000); // 30 seconds
 
@@ -92,9 +143,8 @@ io.on('connection', (socket) => {
     
     if (!roomDocs.has(roomId)) {
       const ydoc = new Y.Doc();
-      // Optionally load initial state from DB
       try {
-        const room = await Room.findOne({ roomId });
+        const room = await getRoomFromDbOrMemory(roomId);
         if (room && room.code) {
           ydoc.getText('monaco').insert(0, room.code);
         }
@@ -119,6 +169,9 @@ io.on('connection', (socket) => {
     
     // Broadcast updated users list
     const usersArray = Array.from(roomUsers.get(roomId).values());
+    // Direct broadcast (works without Redis)
+    io.to(roomId).emit('room-users', usersArray);
+    // Also via Redis for multi-instance
     pubClient.publish(`room:${roomId}`, JSON.stringify({
       type: 'users-update',
       users: usersArray
@@ -139,7 +192,10 @@ io.on('connection', (socket) => {
       } catch(e) {}
     }
     
-    // Broadcast via Redis
+    // Broadcast directly via Socket.IO (works without Redis)
+    socket.to(roomId).emit('crdt-update', { senderId: socket.id, updateBase64 });
+
+    // Also publish via Redis for multi-instance scaling
     pubClient.publish(`room:${roomId}`, JSON.stringify({ 
       type: 'crdt-update', 
       senderId: socket.id, 
@@ -148,6 +204,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('cursor-move', ({ roomId, position }) => {
+    // Broadcast directly
+    socket.to(roomId).emit('cursor-update', { senderId: socket.id, position });
+    // Also via Redis
     pubClient.publish(`room:${roomId}`, JSON.stringify({
       type: 'cursor-update',
       senderId: socket.id,
@@ -156,6 +215,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('language-change', ({ roomId, language }) => {
+    socket.to(roomId).emit('language-change', { senderId: socket.id, language });
     pubClient.publish(`room:${roomId}`, JSON.stringify({
       type: 'language-update',
       senderId: socket.id,
@@ -164,6 +224,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('execution-output', ({ roomId, output }) => {
+    socket.to(roomId).emit('execution-output', { senderId: socket.id, output });
     pubClient.publish(`room:${roomId}`, JSON.stringify({
       type: 'output-update',
       senderId: socket.id,
@@ -184,6 +245,9 @@ function handleLeave(socket, roomId) {
   if (usersMap) {
     usersMap.delete(socket.id);
     const usersArray = Array.from(usersMap.values());
+    // Direct broadcast
+    io.to(roomId).emit('room-users', usersArray);
+    // Also via Redis
     pubClient.publish(`room:${roomId}`, JSON.stringify({
       type: 'users-update',
       users: usersArray
@@ -198,7 +262,11 @@ function handleLeave(socket, roomId) {
 }
 
 // --- Redis Pub/Sub Subscriber ---
-subClient.psubscribe('room:*');
+if (subClient && typeof subClient.on === 'function') {
+  subClient.on('ready', () => {
+    subClient.psubscribe('room:*');
+  });
+}
 
 subClient.on('pmessage', (pattern, channel, message) => {
   const roomId = channel.split(':')[1];

@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretcodesyncjwt';
 
 const verifyToken = (req, res, next) => {
   // Extract token from cookies or Authorization header

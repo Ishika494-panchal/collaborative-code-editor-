@@ -24,7 +24,7 @@ const io = new Server(server, {
 
 const mongoose = require('mongoose');
 
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.EDITOR_PORT || 3002;
 
 // Connect to MongoDB
 if (process.env.MONGO_URI) {

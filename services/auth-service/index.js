@@ -8,7 +8,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.AUTH_PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';

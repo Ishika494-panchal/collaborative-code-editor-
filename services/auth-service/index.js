@@ -34,8 +34,32 @@ passport.use(new GitHubStrategy({
 ));
 
 // Start GitHub OAuth Flow
-app.get('/auth/github',
-  passport.authenticate('github', { scope: [ 'user:email' ] }));
+app.get('/auth/github', (req, res, next) => {
+  const host = req.headers.host || '';
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || process.env.NODE_ENV !== 'production';
+
+  if (isLocal) {
+    console.log('🔄 Local development detected: Bypassing GitHub OAuth and logging in as LocalDev');
+    
+    // Create a mock user profile for local testing
+    const mockUser = {
+      id: 'mock-local-user-123',
+      username: 'LocalDev'
+    };
+
+    // Create JWT
+    const token = jwt.sign({
+      id: mockUser.id,
+      username: mockUser.username
+    }, JWT_SECRET, { expiresIn: '1d' });
+
+    // Redirect to API Gateway to set the cookie
+    return res.redirect(`${GATEWAY_URL}/auth/set-token?token=${token}`);
+  }
+
+  // Production: Go through real GitHub OAuth
+  passport.authenticate('github', { scope: [ 'user:email' ] })(req, res, next);
+});
 
 // GitHub OAuth Callback
 app.get('/auth/github/callback', (req, res, next) => {

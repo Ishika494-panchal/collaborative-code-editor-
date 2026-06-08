@@ -13,6 +13,14 @@ export class SocketService {
     this.socket = io(config.socketUrl, {
       withCredentials: true
     });
+
+    this.socket.on('connect', () => {
+      console.log('🔌 Connected to WebSocket server successfully!');
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.error('❌ WebSocket connection error:', error);
+    });
   }
 
   joinRoom(roomId: string, user: any) {

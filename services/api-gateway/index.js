@@ -61,11 +61,12 @@ app.use('/api/rooms', createProxyMiddleware({
 }));
 
 // Proxy WebSockets for Socket.IO to Editor Service
-app.use('/socket.io', createProxyMiddleware({
+const wsProxy = createProxyMiddleware({
   target: EDITOR_SERVICE_URL,
   changeOrigin: true,
   ws: true // Enable WebSocket proxying
-}));
+});
+app.use('/socket.io', wsProxy);
 
 // Proxy /api/execute to the Execution Service
 // IMPORTANT: Do not put express.json() before this proxy, otherwise body-parser 
@@ -87,6 +88,9 @@ app.get('/api/protected', verifyToken, (req, res) => {
   res.json({ message: 'Welcome to the protected gateway route', user: req.user });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`API Gateway running on port ${PORT}`);
 });
+
+// IMPORTANT: Catch the upgrade event to proxy WebSockets!
+server.on('upgrade', wsProxy.upgrade);

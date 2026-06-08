@@ -4,6 +4,7 @@
   "description": "Collaborative Code Editor Monorepo",
   "scripts": {
     "start": "concurrently \"npm run start-api\" \"npm run start-auth\" \"npm run start-editor\" \"npm run start-exec\" \"npm run start-frontend\"",
+    "start-backend": "concurrently \"npm run start-api\" \"npm run start-auth\" \"npm run start-editor\" \"npm run start-exec\"",
     "start-api": "node services/api-gateway/index.js",
     "start-auth": "node services/auth-service/index.js",
     "start-editor": "node services/editor-service/index.js",

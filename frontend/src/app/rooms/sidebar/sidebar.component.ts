@@ -22,6 +22,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
     });
   }
 
+  isCurrentUser(user: any): boolean {
+    return user.id === this.socketService.socketId;
+  }
+
   ngOnDestroy() {
     if (this.userSub) {
       this.userSub.unsubscribe();

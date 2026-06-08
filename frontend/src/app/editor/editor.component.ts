@@ -21,7 +21,7 @@ declare const monaco: any;
 export class EditorComponent implements OnInit, OnDestroy {
   @Input() roomId: string = '';
   
-  editorOptions = { theme: 'vs-dark', language: 'javascript' };
+  editorOptions = { theme: 'vs-dark', language: 'javascript', automaticLayout: true };
   languages = [
     { id: 'javascript', name: 'JavaScript' },
     { id: 'typescript', name: 'TypeScript' },
@@ -40,12 +40,13 @@ export class EditorComponent implements OnInit, OnDestroy {
 
   // Execution State
   isExecuting: boolean = false;
-  output: string = 'Welcome to the CodeSync terminal.\nClick "Run Code" to execute...';
+  output: string = 'Welcome to CodeSync terminal.\nClick "Run Code" to execute...';
 
   private ydoc = new Y.Doc();
   private ytext: Y.Text;
   private monacoBinding: any;
   private editorInstance: any;
+  private isApplyingRemote = false; // Flag to prevent CRDT echo loop
 
   private subs: Subscription = new Subscription();
   private cursorDecorations: Map<string, string[]> = new Map();
@@ -56,53 +57,72 @@ export class EditorComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    // Listen for room users
     this.subs.add(this.socketService.onRoomUsers().subscribe(users => {
       this.activeUsers = users;
     }));
 
-    this.ydoc.on('update', (update) => {
+    // ─── CRDT: Send local updates to server ─────────────────────────────────
+    // Only send if the update originated locally (not from a remote apply)
+    this.ydoc.on('update', (update: Uint8Array, origin: any) => {
+      if (origin === 'remote') return; // Skip remote updates to prevent echo loop
       const updateBase64 = btoa(String.fromCharCode.apply(null, Array.from(update)));
       this.socketService.sendCrdtUpdate(this.roomId, updateBase64);
     });
 
+    // ─── CRDT: Receive full state sync on join ──────────────────────────────
     this.subs.add(this.socketService.onCrdtSync().subscribe(updateBase64 => {
       try {
         const update = new Uint8Array(atob(updateBase64).split('').map(c => c.charCodeAt(0)));
-        Y.applyUpdate(this.ydoc, update);
-      } catch(e) {}
+        Y.applyUpdate(this.ydoc, update, 'remote'); // Mark as remote origin
+      } catch(e) {
+        console.warn('CRDT sync error:', e);
+      }
     }));
 
+    // ─── CRDT: Receive incremental updates ──────────────────────────────────
     this.subs.add(this.socketService.onCrdtUpdate().subscribe(data => {
+      // Skip updates from ourselves
+      if (data.senderId === this.socketService.socketId) return;
       try {
         const update = new Uint8Array(atob(data.updateBase64).split('').map(c => c.charCodeAt(0)));
-        Y.applyUpdate(this.ydoc, update);
-      } catch(e) {}
+        Y.applyUpdate(this.ydoc, update, 'remote'); // Mark as remote origin
+      } catch(e) {
+        console.warn('CRDT update error:', e);
+      }
     }));
 
+    // ─── Remote cursor updates ──────────────────────────────────────────────
     this.subs.add(this.socketService.onCursorUpdate().subscribe(data => {
+      if (data.senderId === this.socketService.socketId) return;
       this.renderRemoteCursor(data.senderId, data.position);
     }));
 
-    this.subs.add(this.socketService.onLanguageChange().subscribe(language => {
+    // ─── Remote language changes ────────────────────────────────────────────
+    this.subs.add(this.socketService.onLanguageChange().subscribe(data => {
+      const language = data.language || data;
       this.editorOptions = { ...this.editorOptions, language };
       if (this.editorInstance) {
         monaco.editor.setModelLanguage(this.editorInstance.getModel(), language);
       }
     }));
 
-    this.subs.add(this.socketService.onExecutionOutput().subscribe(output => {
+    // ─── Remote execution output ────────────────────────────────────────────
+    this.subs.add(this.socketService.onExecutionOutput().subscribe(data => {
+      const output = data.output || data;
       this.output = output;
-      if (output === 'Executing container...') {
-        this.isExecuting = true;
-      } else {
-        this.isExecuting = false;
-      }
+      this.isExecuting = (output === 'Executing...');
     }));
   }
 
   ngOnDestroy() {
     this.subs.unsubscribe();
     if (this.monacoBinding) this.monacoBinding.destroy();
+    // Clean up cursor style elements
+    this.cursorDecorations.forEach((_, senderId) => {
+      const styleEl = document.getElementById(`cursor-style-${senderId}`);
+      if (styleEl) styleEl.remove();
+    });
   }
 
   onLanguageChange(event: Event) {
@@ -139,7 +159,7 @@ export class EditorComponent implements OnInit, OnDestroy {
       {
         range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
         options: {
-          className: `remote-cursor-${senderId}`,
+          className: `remote-cursor-${senderId.replace(/[^a-zA-Z0-9]/g, '')}`,
           hoverMessage: { value: `**${user.name}**` },
           beforeContentClassName: 'remote-cursor-before'
         }
@@ -147,24 +167,24 @@ export class EditorComponent implements OnInit, OnDestroy {
     ]);
     this.cursorDecorations.set(senderId, newDecorations);
 
-    let styleEl = document.getElementById(`cursor-style-${senderId}`);
+    const safeId = senderId.replace(/[^a-zA-Z0-9]/g, '');
+    let styleEl = document.getElementById(`cursor-style-${safeId}`);
     if (!styleEl) {
       styleEl = document.createElement('style');
-      styleEl.id = `cursor-style-${senderId}`;
+      styleEl.id = `cursor-style-${safeId}`;
       document.head.appendChild(styleEl);
     }
-    styleEl.innerHTML = `.remote-cursor-${senderId} { border-left: 2px solid ${user.color}; position: absolute; }`;
+    styleEl.innerHTML = `.remote-cursor-${safeId} { border-left: 2px solid ${user.color}; position: absolute; }`;
   }
 
   runCode() {
     this.isExecuting = true;
-    this.output = 'Executing container...';
+    this.output = 'Executing...';
     this.socketService.sendExecutionOutput(this.roomId, this.output);
 
     const code = this.ytext.toString();
     const language = this.editorOptions.language;
 
-    // Send POST to API Gateway
     this.http.post<any>(`${config.apiUrl}/api/execute`, { language, code }, { withCredentials: true }).subscribe({
         next: (res) => {
           this.output = res.output;
@@ -176,7 +196,7 @@ export class EditorComponent implements OnInit, OnDestroy {
           if (err.error && err.error.error) {
             this.output = `[Error] ${err.error.error}`;
           } else {
-            this.output = `[Error] Failed to connect to execution service.\nPlease ensure Docker Desktop and backend services are running.`;
+            this.output = `[Error] Failed to connect to execution service.\nPlease ensure backend services are running.`;
           }
           this.socketService.sendExecutionOutput(this.roomId, this.output);
         }

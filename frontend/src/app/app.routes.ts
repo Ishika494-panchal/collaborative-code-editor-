@@ -1,9 +1,13 @@
 import { Routes } from '@angular/router';
-import { CreateRoomComponent } from './rooms/create-room/create-room.component';
+import { LoginComponent } from './login/login.component';
+import { DashboardComponent } from './dashboard/dashboard.component';
 import { RoomComponent } from './rooms/room/room.component';
+import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'rooms/create', pathMatch: 'full' },
-  { path: 'rooms/create', component: CreateRoomComponent },
-  { path: 'rooms/:id', component: RoomComponent }
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
+  { path: 'login', component: LoginComponent },
+  { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
+  { path: 'rooms/:id', component: RoomComponent, canActivate: [authGuard] },
+  { path: '**', redirectTo: 'login' }
 ];

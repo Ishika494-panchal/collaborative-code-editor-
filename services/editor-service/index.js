@@ -96,10 +96,10 @@ async function updateRoomCodeInDbOrMemory(roomId, code) {
 }
 
 // --- REST APIs ---
-app.post('/api/rooms', async (req, res) => {
+app.post('/api/rooms', verifyToken, async (req, res) => {
   try {
     const roomId = uuidv4();
-    const userId = (req.user && req.user.id) || 'anonymous';
+    const userId = req.user.id;
     const room = await createRoomInDbOrMemory(roomId, userId);
     res.status(201).json({ 
       roomId, 
@@ -111,7 +111,7 @@ app.post('/api/rooms', async (req, res) => {
   }
 });
 
-app.get('/api/rooms/:id', async (req, res) => {
+app.get('/api/rooms/:id', verifyToken, async (req, res) => {
   try {
     const room = await getRoomFromDbOrMemory(req.params.id);
     if (!room) return res.status(404).json({ error: 'Room not found' });

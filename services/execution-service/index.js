@@ -6,21 +6,67 @@ const PORT = process.env.EXECUTION_PORT || 3003;
 app.use(express.json());
 
 // Map frontend languages to Piston API language names and versions
-const LANGUAGE_MAP = {
-  javascript: { language: 'javascript', version: '18.15.0' },
-  typescript: { language: 'typescript', version: '5.0.3' },
-  python:     { language: 'python',     version: '3.10.0' },
-  java:       { language: 'java',       version: '15.0.2' },
-  c:          { language: 'c',          version: '10.2.0' },
-  cpp:        { language: 'c++',        version: '10.2.0' },
-  go:         { language: 'go',         version: '1.16.2' },
-  rust:       { language: 'rust',       version: '1.68.2' },
-  ruby:       { language: 'ruby',       version: '3.0.1' },
-  php:        { language: 'php',        version: '8.2.3' },
-  csharp:     { language: 'csharp.net', version: '5.0.201' },
-  swift:      { language: 'swift',      version: '5.3.3' },
-  shell:      { language: 'bash',       version: '5.2.0' },
+const STATIC_LANGUAGE_MAP = {
+  javascript: { language: 'javascript', version: '*' },
+  typescript: { language: 'typescript', version: '*' },
+  python:     { language: 'python',     version: '*' },
+  java:       { language: 'java',       version: '*' },
+  c:          { language: 'c',          version: '*' },
+  cpp:        { language: 'c++',        version: '*' },
+  go:         { language: 'go',         version: '*' },
+  rust:       { language: 'rust',       version: '*' },
+  ruby:       { language: 'ruby',       version: '*' },
+  php:        { language: 'php',        version: '*' },
+  csharp:     { language: 'csharp.net', version: '*' },
+  swift:      { language: 'swift',      version: '*' },
+  shell:      { language: 'bash',       version: '*' },
 };
+
+let LANGUAGE_MAP = {};
+
+// Fetch Piston runtimes dynamically to get exact version strings
+async function initPistonRuntimes() {
+  try {
+    const response = await fetch('https://emkc.org/api/v2/piston/runtimes');
+    if (!response.ok) throw new Error(`Status ${response.status}`);
+    const runtimes = await response.json();
+    
+    const map = {};
+    for (const key of Object.keys(STATIC_LANGUAGE_MAP)) {
+      const targetLang = STATIC_LANGUAGE_MAP[key].language;
+      // Find the best match in runtimes
+      const match = runtimes.find(r => r.language === targetLang || (r.aliases && r.aliases.includes(targetLang)));
+      if (match) {
+        map[key] = { language: match.language, version: match.version };
+      } else {
+        // Fallback to static config format
+        map[key] = { language: targetLang, version: '*' };
+      }
+    }
+    LANGUAGE_MAP = map;
+    console.log('✅ Loaded dynamic Piston language maps');
+  } catch (err) {
+    console.warn('⚠️ Failed to fetch dynamic Piston runtimes, falling back to hardcoded versions:', err.message);
+    // Hardcoded known-good fallback list
+    LANGUAGE_MAP = {
+      javascript: { language: 'javascript', version: '18.15.0' },
+      typescript: { language: 'typescript', version: '5.0.3' },
+      python:     { language: 'python',     version: '3.10.0' },
+      java:       { language: 'java',       version: '15.0.2' },
+      c:          { language: 'c',          version: '10.2.0' },
+      cpp:        { language: 'c++',        version: '10.2.0' },
+      go:         { language: 'go',         version: '1.16.2' },
+      rust:       { language: 'rust',       version: '1.68.2' },
+      ruby:       { language: 'ruby',       version: '3.0.1' },
+      php:        { language: 'php',        version: '8.2.3' },
+      csharp:     { language: 'csharp.net', version: '5.0.201' },
+      swift:      { language: 'swift',      version: '5.3.3' },
+      shell:      { language: 'bash',       version: '5.2.0' },
+    };
+  }
+}
+
+initPistonRuntimes();
 
 const { exec } = require('child_process');
 const fs = require('fs');

@@ -1,0 +1,82 @@
+<div class="dashboard-page">
+  <div class="bg-mesh"></div>
+
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="top-bar-brand">
+      <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+        <rect x="4" y="8" width="40" height="32" rx="4" stroke="url(#gd)" stroke-width="2.5" fill="none"/>
+        <text x="14" y="29" font-family="monospace" font-size="12" fill="url(#gd)">&#60;/&#62;</text>
+        <defs><linearGradient id="gd" x1="0" y1="0" x2="48" y2="48"><stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#c084fc"/></linearGradient></defs>
+      </svg>
+      <span class="brand-text">CodeSync</span>
+    </div>
+    <div class="top-bar-user">
+      <img *ngIf="avatarUrl" [src]="avatarUrl" alt="avatar" class="user-avatar" />
+      <div *ngIf="!avatarUrl" class="user-avatar-placeholder">{{ username.charAt(0).toUpperCase() }}</div>
+      <span class="user-name">{{ username }}</span>
+      <button class="btn-logout" (click)="logout()" id="logout-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="dashboard-main">
+    <div class="welcome-section">
+      <h1 class="welcome-title">Welcome back, <span class="highlight">{{ username }}</span> 👋</h1>
+      <p class="welcome-subtitle">Create a new coding room or join an existing one to start collaborating.</p>
+    </div>
+
+    <div class="cards-grid">
+      <!-- Create Room Card -->
+      <div class="action-card create-card">
+        <div class="card-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+        </div>
+        <h2 class="card-title">Create Room</h2>
+        <p class="card-desc">Start a new collaborative coding session. Share the room ID with your team.</p>
+        <button class="btn-primary" (click)="createRoom()" [disabled]="isCreating" id="create-room-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          {{ isCreating ? 'Creating...' : 'Create New Room' }}
+        </button>
+      </div>
+
+      <!-- Join Room Card -->
+      <div class="action-card join-card">
+        <div class="card-icon join-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+        </div>
+        <h2 class="card-title">Join Room</h2>
+        <p class="card-desc">Enter a room ID shared by your teammate to join their session.</p>
+        <div class="join-input-group">
+          <input
+            type="text"
+            [(ngModel)]="joinRoomId"
+            placeholder="Paste Room ID here..."
+            class="input-room-id"
+            id="join-room-input"
+            (keydown.enter)="joinRoom()"
+          />
+          <button class="btn-join" (click)="joinRoom()" id="join-room-btn">
+            Join
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+        <p class="join-error" *ngIf="joinError">{{ joinError }}</p>
+      </div>
+    </div>
+  </main>
+</div>

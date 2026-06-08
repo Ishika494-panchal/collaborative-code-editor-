@@ -1,45 +1,131 @@
 .sidebar-container {
   width: 100%;
-  background-color: #252526;
+  background: linear-gradient(180deg, #1a1a2e, #16162a);
   color: #cccccc;
   height: 100%;
-  border-left: 1px solid #1e1e1e;
-  padding: 15px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', sans-serif;
 }
 
-h3 {
-  margin-top: 0;
-  font-size: 1.1rem;
-  border-bottom: 1px solid #3c3c3c;
-  padding-bottom: 10px;
-  margin-bottom: 15px;
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.user-count {
+  margin-left: auto;
+  background: rgba(129, 140, 248, 0.15);
+  color: #818cf8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+  min-width: 20px;
+  text-align: center;
 }
 
 .user-list {
   list-style-type: none;
-  padding: 0;
+  padding: 12px;
   margin: 0;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .user-item {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  transition: background 0.2s ease;
+}
+
+.user-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.user-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
 }
 
 .avatar-circle {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
-  margin-right: 10px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.online-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #34d399;
+  border: 2px solid #1a1a2e;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  min-width: 0;
 }
 
 .user-name {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.you-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #818cf8;
+  background: rgba(129, 140, 248, 0.12);
+  padding: 2px 8px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.empty-state p {
+  margin: 0 0 6px 0;
+  font-size: 0.88rem;
+}
+
+.empty-hint {
+  font-size: 0.78rem !important;
+  color: rgba(255, 255, 255, 0.2) !important;
 }

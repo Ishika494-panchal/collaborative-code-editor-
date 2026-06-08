@@ -15,9 +15,13 @@ services:
       - key: PORT
         value: 3000
       - key: FRONTEND_URL
-        value: https://codesync-frontend.onrender.com
+        value: https://codesync-frontend.onrender.com # Note: Override this in Render dashboard if your frontend has a suffix (e.g. -md6s)
+      - key: AUTH_SERVICE_URL
+        value: http://codesync-auth-service:3001
+      - key: EDITOR_SERVICE_URL
+        value: http://codesync-editor-service:3002
       - key: EXECUTION_SERVICE_URL
-        value: https://codesync-execution-service.onrender.com
+        value: http://codesync-execution-service:3003
 
   # Auth Service
   - type: web

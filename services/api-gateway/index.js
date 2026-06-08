@@ -26,10 +26,12 @@ app.get('/auth/set-token', (req, res) => {
   const { token } = req.query;
   if (!token) return res.redirect(FRONTEND_URL);
 
+  const isProduction = process.env.NODE_ENV === 'production' || req.secure || req.headers['x-forwarded-proto'] === 'https';
+
   res.cookie('jwt', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 1 day
   });
 
